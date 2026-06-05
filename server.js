@@ -1,61 +1,91 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const { GoogleGenAI } = require('@google/genai');
+// 🌐 الرابط السحابي الجديد الخاص بسيرفر Render
+const API_URL = "https://stiven-ai.onrender.com/api/chat";
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+// متغير للاحتفاظ بشخصية المساعد الحالية (الافتراضية stiven)
+let currentCharacter = 'stiven';
+// مصفوفة للاحتفاظ بتاريخ المحادثة الحالية
+let chatHistory = [];
 
-// 🔑 مفتاح الـ API الخاص بك
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// عناصر واجهة المستخدم
+const chatForm = document.getElementById('chat-form');
+const userInput = document.getElementById('user-input');
+const chatMessages = document.getElementById('chat-messages');
+const characterSelect = document.getElementById('character-select');
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+// تغيير الشخصية عند اختيارها من القائمة
+if (characterSelect) {
+    characterSelect.addEventListener('change', (e) => {
+        currentCharacter = e.target.value;
+        chatHistory = []; // إعادة تعيين التاريخ عند تغيير الشخصية لتبدأ محادثة جديدة
+        chatMessages.innerHTML = ''; // تنظيف الشاشة
+        appendMessage('system', currentCharacter === 'stiven' ? 'تم تفعيل المساعد stiven.' : 'تم تفعيل المساعدة hadia.');
+    });
+}
 
-const systemPrompts = {
-    stiven: "أنت الآن تتقمص شخصية مساعد ذكاء اصطناعي خبير ومباشر اسمك stiven. تتحدث دائماً بصيغة المذكر بأسلوب تقني ذكي وسريع، وتساعد المستخدم في البرمجة وحل المشكلات بدقة عالية.",
-    hadia: "أنتِ الآن تتقمصين شخصية مساعدة ذكاء اصطناعي ذكية، تفاعلية ولطيفة جداً اسمكِ hadia. تتحدثين دائماً بصيغة المؤنث بأسلوب لبق، منظم، ومريح جداً في الحوار والشرح."
-};
+// الاستماع لحدث إرسال النموذج (الرسالة)
+if (chatForm) {
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (!message) return;
 
-app.post('/api/chat', async (req, res) => {
-    const { message, character, history } = req.body;
-    try {
-        const selectedPrompt = systemPrompts[character] || systemPrompts.stiven;
-        
-        // تجهيز تاريخ المحادثة بالصيغة التي يفهمها الموديل الجديد
-        const contents = [];
-        if (history && history.length > 0) {
-            history.forEach(turn => {
-                contents.push({
-                    role: turn.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: turn.text }]
-                });
+        // 1. عرض رسالة المستخدم في الواجهة
+        appendMessage('user', message);
+        userInput.value = '';
+
+        // 2. إظهار مؤشر التحميل
+        const loadingDiv = appendMessage('loading', 'جاري التفكير...');
+
+        try {
+            // 3. إرسال الطلب إلى السيرفر السحابي على الإنترنت
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: message,
+                    character: currentCharacter,
+                    history: chatHistory
+                })
             });
-        }
-        
-        // إضافة الرسالة الحالية الأخيرة
-        contents.push({
-            role: 'user',
-            parts: [{ text: message }]
-        });
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: contents,
-            config: {
-                systemInstruction: selectedPrompt
+            const data = await response.json();
+            
+            // إزالة مؤشر التحميل
+            if (loadingDiv) loadingDiv.remove();
+
+            if (data.reply) {
+                // 4. عرض رد الذكاء الاصطناعي
+                appendMessage('model', data.reply);
+                
+                // 5. حفظ التبادل في الذاكرة لتاريخ المحادثة
+                chatHistory.push({ role: 'user', text: message });
+                chatHistory.push({ role: 'model', text: data.reply });
+            } else if (data.error) {
+                appendMessage('error', data.error);
             }
-        });
+        } catch (error) {
+            if (loadingDiv) loadingDiv.remove();
+            console.error('خطأ أثناء الاتصال بالسيرفر:', error);
+            appendMessage('error', 'عذراً، تعذر الاتصال بالسيرفر السحابي. تأكد من تشغيل الخدمة.');
+        }
+    });
+}
 
-        res.json({ reply: response.text });
-    } catch (error) {
-        console.error("خطأ في السيرفر:", error);
-        res.status(500).json({ error: "حدث خطأ أثناء معالجة الرد." });
+// دالة مساعدة لإضافة الرسائل إلى واجهة التشغيل
+function appendMessage(role, text) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message', role);
+    
+    // تنسيق بسيط للنصوص والأسطر البرمجية إن وجدت
+    if (role === 'model') {
+        messageElement.innerHTML = text.replace(/\n/g, '<br>');
+    } else {
+        messageElement.textContent = text;
     }
-});
-
-// 🌐 ضبط المنفذ ليتوافق محلياً ومع منصات الاستضافة الخارجية
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+    
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight; // التمرير التلقائي للأسفل
+    return messageElement;
+}
