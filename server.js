@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenAI } = require('@google/genai');
@@ -53,6 +54,8 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-app.listen(3000, () => {
-    console.log("🚀 سيرفر جيميناي المطور يعمل الآن على المنفذ 3000!");
+// 🌐 ضبط المنفذ ليتوافق محلياً ومع منصات الاستضافة الخارجية
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
