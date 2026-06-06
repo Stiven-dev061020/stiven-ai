@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// هذا السطر هو السر: يخبر السيرفر أن يفتح مجلد public
+// تقديم ملفات الواجهة من مجلد public
 app.use(express.static(path.join(__dirname, 'public')));
 
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
@@ -26,8 +26,8 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// لضمان تحميل صفحة index.html
-app.get('*', (req, res) => {
+// تعديل المسار ليعمل مع Express 5 بدون أخطاء
+app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
