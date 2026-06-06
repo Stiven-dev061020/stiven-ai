@@ -8,12 +8,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. تقديم ملفات الـ public (مثل index.html)
+// هذا السطر يقوم بعرض واجهتك (index.html) تلقائياً بمجرد فتح الرابط
 app.use(express.static(path.join(__dirname, 'public')));
 
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
-// 2. مسار الدردشة
 app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
