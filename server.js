@@ -8,27 +8,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// تقديم ملفات الواجهة من مجلد public
+// 1. تقديم ملفات الـ public (مثل index.html)
 app.use(express.static(path.join(__dirname, 'public')));
 
 const genAI = new GoogleGenerativeAI(process.env.API_KEY);
 
+// 2. مسار الدردشة
 app.post('/api/chat', async (req, res) => {
     try {
         const { message } = req.body;
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const result = await model.generateContent(message);
-        const response = await result.response;
-        res.json({ reply: response.text() });
+        res.json({ reply: result.response.text() });
     } catch (error) {
         console.error("Error:", error);
-        res.status(500).json({ error: "تعذر الاتصال بالذكاء الاصطناعي" });
+        res.status(500).json({ error: "خطأ في السيرفر" });
     }
-});
-
-// تعديل المسار ليعمل مع Express 5 بدون أخطاء
-app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 10000;
