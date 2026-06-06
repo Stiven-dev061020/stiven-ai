@@ -8,10 +8,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// هذا السطر يقوم بعرض واجهتك (index.html) تلقائياً بمجرد فتح الرابط
 app.use(express.static(path.join(__dirname, 'public')));
 
-const genAI = new GoogleGenerativeAI(process.env.API_KEY);
+// تعديل ذكي: سيستخدم المفتاح الموجود في إعدادات Render، 
+// وإذا لم يجده سيستخدم المفتاح المكتوب بين القوسين بالأسفل
+const apiKey = process.env.API_KEY || "YOUR_ACTUAL_API_KEY_HERE"; 
+const genAI = new GoogleGenerativeAI(apiKey);
 
 app.post('/api/chat', async (req, res) => {
     try {
@@ -20,8 +22,8 @@ app.post('/api/chat', async (req, res) => {
         const result = await model.generateContent(message);
         res.json({ reply: result.response.text() });
     } catch (error) {
-        console.error("Error:", error);
-        res.status(500).json({ error: "خطأ في السيرفر" });
+        console.error("Error details:", error);
+        res.status(500).json({ error: "خطأ في السيرفر: تأكد من مفتاح الـ API" });
     }
 });
 
